@@ -1,13 +1,20 @@
 # Author: Raleigh St. Clair restc@icloud.com
+# Finds the last method called in irb based on irb history
 
-class WhichENV
-  # Returns environment type when run in interactive shell
-  attr_reader :environment, :ruby_version
+class LastCall
+  require_relative 'FMELibrary.rb'
+  attr_reader :environment, :ruby_version, :env
 
   def initialize
+    @env = WhichENV.new.environment
+    @last_call = get_history
     @environment  = "UNKNOWN"
     @ruby_version = "UNKNOWN"
     match
+  end
+
+  def get_history
+    `hist --tail 2 -n --show -2`
   end
 
   def match

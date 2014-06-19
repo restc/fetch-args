@@ -19,3 +19,8 @@ Ideally this would happen automatically when it is an argument error.
 *  I can use HTTParty gem for making a request
 *  I need a URL library to help parse URLs
 *  
+
+<h3> After building getter
+*  I can indeed use HTTParty to fetch data
+*  The URLs can be constructed from a few different sites. Doc sites have easily
+parsed URLs. 
