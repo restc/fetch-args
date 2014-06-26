@@ -1,7 +1,7 @@
 class Match
 
-  def method_regex
-    regex = /(?<=`).+\w/
+  def self.irb_argerror_method_regex
+    /(?<=`).+\w/
   end
 
-  def
+end
