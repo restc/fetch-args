@@ -8,23 +8,22 @@ class Partytime
   require 'nokogiri'
   require 'open-uri'
 
-  attr_reader :url, :ruby_version, :method, :success, :request, :status
+  attr_reader :url, :ruby_version, :method, :success, :request
 
 
-  def initialize(*args)
+  def initialize
     @ruby_version = set_ruby_version()
     @success      = false
-    @status     ||= "Ready"
-    @url        ||= args[0]
+    @request      = nil
+    @url          = nil
   end
 
   def party(klass, method, url=@url, *args)
     @klass = klass.to_s
     @method = method.to_s
-    @url = fetch_rubydoc_uri(klass) #set_search_url(@klass, @method)
-    print "Fetching data from #{@url}.\n"
-    @request = request(@url, @method)
-    puts @request
+    @url ||= fetch_rubydoc_uri(klass)
+    print "Requesting data from #{@url}.\n"
+    Parse::new(@url, @method)
   end
 
   def set_ruby_version
@@ -50,7 +49,7 @@ class Partytime
     else
       @base_uri = base_uri
     end
-    @status = "#{@base_uri} is set as the base URI."
+    @base_uri
   end
 
   def set_uri_basename(basename="default")
@@ -64,53 +63,22 @@ class Partytime
 
   def fetch_rubydoc_uri(klass=@klass)
     ["http://ruby-doc.org/", "core-", @ruby_version, "/", klass, ".html"].join
-  end
-
-  def request(url, method)
-    extend Enumerable
-
-
-    @request = HTTParty.get(url)
-    @success = true
-
-    rescue LoadError => le
-      print le.message
-      super(le.message)
-    rescue ScriptError => se
-      print se.message
-      super(se.message)
-    rescue StandardError => ste
-      print ste.message
-      super(ste.message)
-    ensure
-    if @success
-      return @request
-    else
-      return @success
-    end
+    # http://ruby-doc.org/core-2.0.0/Array.html
   end
 
   def build_url(basename, *args)
     @url = basename + @core + @ruby_version + '/' + @klass + @html
   end
 
-  def parse_html(request)
-    Nokogiri::HTML.parse(request)
-  end
-
 end
 
 class ArgumentError
-  attr_reader :msg, :klass, :method
+  attr_reader :klass, :method
 
   def initialize(msg, *args)
-    @backtrace = self.backtrace
-
     puts "Fetching params for correct usage..."
-    @method = caller[1].match(/(?<=`).+\w/)
-    #   `caller[1]` grabs the method that produced the ArgError
-
     @klass = caller.class
+    @method = caller[1].match(/(?<=`).+\w/)
 
     Partytime.new.party(@klass, @method, *args)
     super(msg)
