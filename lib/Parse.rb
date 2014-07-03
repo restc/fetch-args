@@ -5,18 +5,63 @@ class Parse
   require 'nokogiri'
   require 'open-uri'
 
-  DATA_DIR = "data-hold/fetch-args"
+  attr_reader :result, :found_methods, :method_error_info
 
-  def initialize(url, method)
+  DATA_DIR = "data-hold/"
+  OUT_FILE = "save_data.txt"
+
+  def initialize
+    @result = Array.new
+    @found_methods = Hash.new
+    @method_info = Array.new
+  end
+
+  def match_method_callseq
+    # http://rubular.com/r/xzivx9z8Vj
+    /(?<=\"method-callseq\">)(\w|\W)*(?=<\/span>)/
+  end
+
+  def request(url, klass, method)
+    print "Finding correct usage for #{klass.to_s.capitalize}::#{method.to_s}: \n\n"
 
     page = Nokogiri::HTML( open( url ))
-    rows = page.css("div##{method}-method.method_detail")
-    result = rows.each.map { |row|
-      row.css("div.method-callseq")
-    }.to_a
-    prep_save()
-    result.to_file()
-    print result
+    # The next css selector finds method detail for methods on page
+
+    page.css("body div.wrapper div.documentation-section div.method-detail").each_with_index do |each_method, index|
+      if each_method.attributes["id"].value =~ /(.*)#{method}(.*)/
+        @method_info.push(each_method.children)
+      end
+    end
+    beautify_method_info @method_info
+  end
+
+  def beautify_method_info(method_info)
+    usage = Array.new
+    method_info.each do |part|
+      usage.push(part.text.split("\n"))
+    end
+    kill_blanks(usage)
+  end
+
+  def kill_blanks(from_beautify_method_info)
+    fbmi = from_beautify_method_info.flatten
+    fbmi.reject! {|line| line.empty? }
+    fbmi.each_with_index do |line,index|
+      if line.to_s.match(/(.*)click to toggle source(.*)/)
+        fbmi[index] = "\n"
+      end
+    end
+    fbmi.uniq!
+    puts fbmi#.join(' ')
+  end
+
+  def css_find_method
+    # "css(<body class="class rdocstar">, <div class="wrapper">,
+    # <div id="documentation">, <div class="documentation-section">,
+    # <div class="method-detail">, <div class="method-heading">,
+    # <span class="method-name">#{name_of_method}</span>
+    # )"
+    "//body[@class = 'class rdocstar']/div[@class = 'wrapper']/div[@class = 'documentation-section']/div[@class = 'method-detail']/div[@class = 'method-heading']/span[@class = 'method-name']"
   end
 
   def prep_save(file=DATA_DIR)
@@ -24,105 +69,8 @@ class Parse
   end
 
   def to_file
-    f = File.open(DATA_DIR+'/'+'data.txt', 'w')
+    f = File.open(DATA_DIR+OUT_FILE, 'w')
     f.write(self)
     f.close()
   end
-end
-
-module CSSFilters
-  get_method = "div##{method}-method.method_detail"
-end
-
-module Rgx
-  def from_methodcallseq
-    # http://rubular.com/r/woGPPpPRFZ
-    /(?<="method-callseq">)[a-zA-Z0-9\D]*(?=(<!-- [\w\D]* -->))/
-  end
-
-  def source_code_regex(method)
-    #format: http://rubular.com/r/sOglIMQMlx
-    /(<div class="#{method}-source-code" id="#{method}-source">)/
-  end
-
-  def self.irb_argerror_method_regex
-    /(?<=`).+\w/
-  end
-
-end
-
-module URILibrary
-
-    def config(docsite=:ruby_doc)
-      unless DOCSITE_OPTS[docsite]
-        raise NotImplementedError => e
-        print "Hopefully your preferred site will be available soon"
-        exit()
-      else
-        @docset = docsite
-      end
-    end
-
-    def docsite_opts
-      {:rubydoc => "http://www.rubydoc.org/", :ruby_doc => "http://www.ruby-doc.org/"}
-    end
-
-    def default
-      fetch_ruby_doc_uri(*args)
-    end
-
-    def try_again_with_default?
-      print "Would you like to try again using #{} [y/n]?"
-      answer = gets.chomp
-      case answer
-      when "y"
-        return true
-      when "n"
-        return false
-      else
-        print "Did not understand... please answer with y or n"
-        self.try_again_with_default?
-      end
-    end
-
-    def fetch_ruby_doc_uri(ruby_version, klass)
-      ["http://ruby-doc.org/", "core-", @ruby_version, "/", klass, ".html"].join
-    end
-
-    def fetch_rubydoc_uri(ruby_version, library="stdlib", lib_klass="core", klass)
-      basename="http://rubydoc.org/"
-      unless validate_rubydoc_lib(library)
-        raise
-        puts "Please use valid library - did not find a match"
-      end
-      lib_klass_default = "core" # Add other options
-
-      @url = [basename, library, '/', lib_klass, '/', ruby_version, '/', klass].join()
-
-    end
-
-    def fetch_rubydoc_full_path(ruby_version, library="stdlib", lib_klass="core", klass, method)
-      basename="http://rubydoc.org/"
-      unless validate_rubydoc_lib(library)
-        raise
-        puts "Please use valid library - did not find a match"
-      end
-      lib_klass_default = "core" # Add other options
-
-      @url = [basename, library, '/', lib_klass, '/', ruby_version, '/', klass, ':', method].join()
-    end
-
-    def validate_rubydoc_lib(library)
-      lib = {"stdlib" => :true#,
-        # Future plans:
-        #"gems" => :false,
-        #"github" => :false
-        }
-      unless lib[library.to_s]
-        return false
-      else
-        return true
-      end
-    end
-
 end

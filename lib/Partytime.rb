@@ -4,9 +4,8 @@
 # => Find
 
 class Partytime
-  require 'httparty'
-  require 'nokogiri'
-  require 'open-uri'
+  # require 'nokogiri'
+  # require 'open-uri'
 
   attr_reader :url, :ruby_version, :method, :success, :request
 
@@ -23,7 +22,7 @@ class Partytime
     @method = method.to_s
     @url ||= fetch_rubydoc_uri(klass)
     print "Requesting data from #{@url}.\n"
-    Parse::new(@url, @method)
+    Parse::new.request(@url, @klass, @method)
   end
 
   def set_ruby_version
@@ -76,7 +75,7 @@ class ArgumentError
   attr_reader :klass, :method
 
   def initialize(msg, *args)
-    puts "Fetching params for correct usage..."
+    print "Fetching params for correct usage...\n"
     @klass = caller.class
     @method = caller[1].match(/(?<=`).+\w/)
 
